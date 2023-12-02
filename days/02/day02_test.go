@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-var P1_IN_TEST = [1]string{"test/02/in01.txt"}
+var P1_IN_TEST = [1]string{fmt.Sprintf("test/%s/in01.txt", DAY)}
 var P1_OUT_TEST = [1]string{"8"}
 
-var P2_IN_TEST = [1]string{"test/02/in01.txt"}
+var P2_IN_TEST = [1]string{fmt.Sprintf("test/%s/in01.txt", DAY)}
 var P2_OUT_TEST = [1]string{"2286"}
 
 func TestParseColor(t *testing.T) {
@@ -18,10 +18,7 @@ func TestParseColor(t *testing.T) {
 
 	for index, test := range testIn {
 
-		if testOut[index] != parseColor(test) {
-
-			t.Errorf("parseColor(%s) expected '%d' received '%d'", test, testOut[index], parseColor(test))
-		}
+		assert("parseColor", test, fmt.Sprintf("%d", testOut[index]), fmt.Sprintf("%d", parseColor(test)), t)
 	}
 }
 
@@ -32,10 +29,7 @@ func TestParseBallCount(t *testing.T) {
 
 	ballCountReceived := parseBallCount(testIn)
 
-	if ballCountReceived.count != testOut.count || ballCountReceived.color != testOut.color {
-
-		t.Errorf("parseBallCount(%s) expected '%s' received '%s'", testIn, testOut, ballCountReceived)
-	}
+	assert("parseBallCount", testIn, fmt.Sprintf("%s", testOut), fmt.Sprintf("%s", ballCountReceived), t)
 }
 
 func TestParseDraw(t *testing.T) {
@@ -45,10 +39,7 @@ func TestParseDraw(t *testing.T) {
 
 	drawReceived := parseDraw(testIn)
 
-	if fmt.Sprintf("%s", drawReceived) != fmt.Sprintf("%s", testOut) {
-
-		t.Errorf("parseDraw(%s) expected '%s' received '%s'", testIn, testOut, drawReceived)
-	}
+	assert("parseDraw", testIn, fmt.Sprintf("%s", drawReceived), fmt.Sprintf("%s", testOut), t)
 }
 
 func TestParseGame(t *testing.T) {
@@ -76,10 +67,7 @@ func TestParseGame(t *testing.T) {
 
 	gameReceived := parseGame(testIn)
 
-	if fmt.Sprintf("%s", gameReceived) != fmt.Sprintf("%s", testOut) {
-
-		t.Errorf("parseGame(%s) expected '%s' received '%s'", testIn, testOut, gameReceived)
-	}
+	assert("parseGame", testIn, fmt.Sprintf("%s", testOut), fmt.Sprintf("%s", gameReceived), t)
 }
 
 func TestPart1(t *testing.T) {
@@ -88,7 +76,7 @@ func TestPart1(t *testing.T) {
 
 		expected := P1_OUT_TEST[index]
 		received := Part1(element)
-		assert(expected, received, t)
+		assert("Part1", element, expected, received, t)
 	}
 }
 
@@ -98,14 +86,14 @@ func TestPart2(t *testing.T) {
 
 		expected := P2_OUT_TEST[index]
 		received := Part2(element)
-		assert(expected, received, t)
+		assert("Part2", element, expected, received, t)
 	}
 }
 
-func assert(expected string, received string, t *testing.T) {
+func assert(method string, input string, expected string, received string, t *testing.T) {
 
 	if expected != received {
 
-		t.Errorf("Expected '%s' but received '%s'", expected, received)
+		t.Errorf("%s(%s) expected '%s' but received '%s'", method, input, expected, received)
 	}
 }

@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const DAY = "02"
+
 type Color int
 
 const (
@@ -248,6 +250,6 @@ func GetContent(filepath string) string {
 
 func main() {
 
-	fmt.Println(Part1("input/02/in01.txt"))
-	fmt.Println(Part2("input/02/in01.txt"))
+	fmt.Println(fmt.Sprintf("Part 1: %s", Part1(fmt.Sprintf("input/%s/in.txt", DAY))))
+	fmt.Println(fmt.Sprintf("Part 2: %s", Part2(fmt.Sprintf("input/%s/in.txt", DAY))))
 }
