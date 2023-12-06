@@ -53,7 +53,7 @@ Then (1) `t = c + p`, and, since each second pressing time increases speed by 1,
 `d` is maximized for `c = p < t`. Since `c` and `p` can be treated interchangeably, we assume `c >= t/2` and multiply our result by 2 in the end.
 First, we calculate `c_max` achieving the given `d` and `t` by plugging in (2) into (1) and solving for `c` yielding `c = 1/2 (sqrt(t^2 - 4 d) + t).
 To win,`c` can take any natural number between `c_max` and `t/2` (assuming `c >= t/2').
-Hence, the total number of possibilities for winning is roughly `(c - t/2)*2`. We use rounding for edge cases (when `c_max` is an integer)
+Hence, the total number of possibilities for winning is roughly `(c_max - t/2)*2`. We use rounding for edge cases (when `c_max` is an integer)
 and correct the result by 1 if `t` was even (Where we have the additional possibility that `c = p = t/2').
 */
 func getWinningPossibilities(race Race) int64 {
