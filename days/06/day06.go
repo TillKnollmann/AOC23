@@ -45,13 +45,23 @@ func stringToNumber(s string) int64 {
 	return number
 }
 
+/*
+*
+Explanation:
+Let time be `t`, driving time (cruising) be `c`, pressing time be `p` and distance be `d`.
+Then (1) `t = c + p`, and, since each second pressing time increases speed by 1, (2) `d = c * p`.
+`d` is maximized for `c = p < t`. Since `c` and `p` can be treated interchangeably, we assume `c >= t/2` and multiply our result by 2 in the end.
+First, we calculate `c_max` achieving the given `d` and `t` by plugging in (2) into (1) and solving for `c` yielding `c = 1/2 (sqrt(t^2 - 4 d) + t).
+To win,`c` can take any natural number between `c_max` and `t/2` (assuming `c >= t/2').
+Hence, the total number of possibilities for winning is roughly `(c - t/2)*2`. We use rounding for edge cases (when `c_max` is an integer)
+and correct the result by 1 if `t` was even (Where we have the additional possibility that `c = p = t/2').
+*/
 func getWinningPossibilities(race Race) int64 {
 
-	minimumDriveTime := (float64(1) / float64(2)) * (math.Sqrt(math.Pow(float64(race.time), 2)-4*float64(race.distance)) + float64(race.time))
+	maximumDrivingTime := (float64(1) / float64(2)) * (math.Sqrt(math.Pow(float64(race.time), 2)-4*float64(race.distance)) + float64(race.time))
 
-	numberOfPossibilities := (math.Ceil(minimumDriveTime-float64(1)) - math.Floor(float64(race.time)/float64(2))) * float64(2)
+	numberOfPossibilities := (math.Ceil(maximumDrivingTime-float64(1)) - math.Floor(float64(race.time)/float64(2))) * float64(2)
 
-	// If t is even, we calculated one possibility too few, where pressing time = minimumDriveTime
 	if race.time%2 == 0 {
 
 		numberOfPossibilities += 1
