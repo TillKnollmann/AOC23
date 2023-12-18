@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -21,8 +22,7 @@ const (
 
 type Game struct {
 	commands []DigCommand
-	fields   [][]string
-	start    Point
+	vertices []Point
 }
 
 type DigCommand struct {
@@ -36,57 +36,11 @@ type Point struct {
 	positionY int
 }
 
-func parseGame(input string) Game {
+func parseGame(input string, isPartTwo bool) Game {
 
 	var game Game
 
 	game.commands = parseCommands(input)
-
-	minX := 0
-	maxX := 0
-	minY := 0
-	maxY := 0
-
-	current := Point{
-		positionX: 0,
-		positionY: 0,
-	}
-
-	for _, command := range game.commands {
-
-		switch command.direction {
-		case North:
-			current.positionY -= command.length
-		case East:
-			current.positionX += command.length
-		case South:
-			current.positionY += command.length
-		case West:
-			current.positionX -= command.length
-		}
-		minX = min(minX, current.positionX)
-		maxX = max(maxX, current.positionX)
-		minY = min(minY, current.positionY)
-		maxY = max(maxY, current.positionY)
-	}
-
-	game.start = Point{
-		positionX: -1 * minX,
-		positionY: -1 * minY,
-	}
-
-	sizeX := -1*minX + maxX + 1
-	sizeY := -1*minY + maxY + 1
-
-	for y := 0; y < sizeY; y++ {
-
-		var row []string
-		for x := 0; x < sizeX; x++ {
-
-			row = append(row, "_")
-		}
-		game.fields = append(game.fields, row)
-	}
 
 	return game
 }
@@ -121,133 +75,98 @@ func parseCommands(input string) []DigCommand {
 	return commands
 }
 
-func digBorder(game *Game) {
+func calculateVertices(game *Game) {
 
-	current := game.start
-	game.fields[current.positionY][current.positionX] = "#"
+	current := Point{
+		positionX: 0,
+		positionY: 0,
+	}
+
+	game.vertices = append(game.vertices, current)
 
 	for _, command := range game.commands {
 
-		for i := 0; i < command.length; i++ {
-
-			switch command.direction {
-			case North:
-				current.positionY--
-			case East:
-				current.positionX++
-			case South:
-				current.positionY++
-			case West:
-				current.positionX--
-			}
-
-			game.fields[current.positionY][current.positionX] = "#"
+		switch command.direction {
+		case North:
+			current.positionY -= command.length
+		case East:
+			current.positionX += command.length
+		case South:
+			current.positionY += command.length
+		case West:
+			current.positionX -= command.length
 		}
+
+		game.vertices = append(game.vertices, current)
 	}
 }
 
-func digInterior(game *Game) {
+func parseColorsToCommands(game *Game) {
 
-	current := game.start
+	var newCommands []DigCommand
 
 	for _, command := range game.commands {
 
-		for i := 0; i < command.length; i++ {
+		direction, length := parseColor(command.color)
 
-			switch command.direction {
-			case North:
-				current.positionY--
-			case East:
-				current.positionX++
-			case South:
-				current.positionY++
-			case West:
-				current.positionX--
-			}
-
-			var pointToTheRight = Point{
-				positionX: current.positionX,
-				positionY: current.positionY,
-			}
-
-			switch command.direction {
-			case North:
-				pointToTheRight.positionX++
-			case East:
-				pointToTheRight.positionY++
-			case South:
-				pointToTheRight.positionX--
-			case West:
-				pointToTheRight.positionY--
-			}
-
-			floodInterior(game, pointToTheRight)
-		}
+		newCommands = append(newCommands, DigCommand{
+			direction: direction,
+			length:    length,
+			color:     "",
+		})
 	}
+
+	game.commands = newCommands
 }
 
-func floodInterior(game *Game, point Point) {
+func parseColor(color string) (Direction, int) {
 
-	if point.positionX < 0 || point.positionX >= len(game.fields[0]) || point.positionY < 0 || point.positionY >= len(game.fields) {
+	length, _ := strconv.ParseInt(string(color[2:len(color)-2]), 16, 64)
 
-		return
+	switch string(color[len(color)-2 : len(color)-1]) {
+	case "0":
+		return East, int(length)
+	case "1":
+		return South, int(length)
+	case "2":
+		return West, int(length)
+	case "3":
+		return North, int(length)
 	}
 
-	if game.fields[point.positionY][point.positionX] == "#" {
-
-		return
-	}
-
-	game.fields[point.positionY][point.positionX] = "#"
-
-	floodInterior(game, Point{
-		positionX: point.positionX + 1,
-		positionY: point.positionY,
-	})
-
-	floodInterior(game, Point{
-		positionX: point.positionX - 1,
-		positionY: point.positionY,
-	})
-
-	floodInterior(game, Point{
-		positionX: point.positionX,
-		positionY: point.positionY + 1,
-	})
-
-	floodInterior(game, Point{
-		positionX: point.positionX,
-		positionY: point.positionY - 1,
-	})
+	return North, 0
 }
 
 func getFilledCount(game Game) int {
 
-	count := 0
+	return int(ShoelaceFormula(game.vertices)) + int(Perimeter(game.vertices)/2) - 1
+}
 
-	for y := 0; y < len(game.fields); y++ {
-
-		for x := 0; x < len(game.fields[y]); x++ {
-
-			if game.fields[y][x] == "#" {
-
-				count++
-			}
-		}
+func ShoelaceFormula(points []Point) float64 {
+	var sum float64
+	n := len(points)
+	for i := 0; i < n-1; i++ {
+		sum += float64(points[i].positionX*points[i+1].positionY - points[i+1].positionX*points[i].positionY)
 	}
+	return math.Abs(sum / 2)
+}
 
-	return count
+func Perimeter(points []Point) float64 {
+	var sum float64
+	n := len(points)
+	for i := 0; i < n-1; i++ {
+		sum += math.Abs(float64(points[i+1].positionX-points[i].positionX)) + math.Abs(float64(points[i+1].positionY-points[i].positionY))
+	}
+	return sum + 4
 }
 
 func Part1(input string) string {
 
 	content := GetContent(input)
 
-	game := parseGame(content)
+	game := parseGame(content, false)
 
-	digBorder(&game)
-
-	digInterior(&game)
+	calculateVertices(&game)
 
 	return strconv.Itoa(getFilledCount(game))
 }
@@ -256,7 +175,13 @@ func Part2(input string) string {
 
 	content := GetContent(input)
 
-	return string(content[0])
+	game := parseGame(content, true)
+
+	parseColorsToCommands(&game)
+
+	calculateVertices(&game)
+
+	return strconv.Itoa(getFilledCount(game))
 }
 
 func GetContent(filepath string) string {

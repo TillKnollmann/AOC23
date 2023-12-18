@@ -9,7 +9,7 @@ var P1_IN_TEST = []string{fmt.Sprintf("test/%s/in01.txt", DAY)}
 var P1_OUT_TEST = []string{"62"}
 
 var P2_IN_TEST = []string{fmt.Sprintf("test/%s/in01.txt", DAY)}
-var P2_OUT_TEST = []string{"51"}
+var P2_OUT_TEST = []string{"952408144115"}
 
 func TestPart1(t *testing.T) {
 
