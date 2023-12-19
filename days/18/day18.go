@@ -139,7 +139,7 @@ func parseColor(color string) (Direction, int) {
 
 func getFilledCount(game Game) int {
 
-	return int(ShoelaceFormula(game.vertices)) + int(Perimeter(game.vertices)/2) - 1
+	return int(ShoelaceFormula(game.vertices)) + int(Perimeter(game.vertices)/2) + 1
 }
 
 func ShoelaceFormula(points []Point) float64 {
@@ -157,7 +157,7 @@ func Perimeter(points []Point) float64 {
 	for i := 0; i < n-1; i++ {
 		sum += math.Abs(float64(points[i+1].positionX-points[i].positionX)) + math.Abs(float64(points[i+1].positionY-points[i].positionY))
 	}
-	return sum + 4
+	return sum
 }
 
 func Part1(input string) string {
