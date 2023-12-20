@@ -10,6 +10,19 @@ import (
 
 const DAY = "19"
 
+type Range struct {
+	minimum int
+	maximum int
+}
+
+type RangeSet struct {
+	ranges []RangeElement
+}
+
+type RangeElement struct {
+	items map[string]Range
+}
+
 type Game struct {
 	workflows map[string]Workflow
 	elements  []Element
@@ -190,6 +203,121 @@ func getElementScore(element Element) int {
 	return sum
 }
 
+func calculateAcceptedRanges(currentRange RangeElement, currentWorkflow Workflow, game Game, acceptedRanges *RangeSet) {
+
+	rangeForNextRule := copyRangeElement(currentRange)
+
+	for _, rule := range currentWorkflow.rules {
+
+		if rule.bypassCheck {
+
+			if rule.destination == "A" {
+
+				acceptedRanges.ranges = append(acceptedRanges.ranges, rangeForNextRule)
+
+			} else if rule.destination != "R" {
+
+				calculateAcceptedRanges(rangeForNextRule, game.workflows[rule.destination], game, acceptedRanges)
+
+			}
+
+			break
+
+		} else {
+
+			switch rule.compare {
+			case "<":
+				acceptedRange := copyRangeElement(rangeForNextRule)
+				deniedRange := copyRangeElement(rangeForNextRule)
+
+				if acceptedRange.items[rule.property].minimum < rule.compareTo {
+
+					acceptedRange.items[rule.property] = Range{
+						minimum: acceptedRange.items[rule.property].minimum,
+						maximum: min(acceptedRange.items[rule.property].maximum, rule.compareTo-1),
+					}
+
+					if rule.destination == "A" {
+
+						acceptedRanges.ranges = append(acceptedRanges.ranges, copyRangeElement(acceptedRange))
+
+					} else if rule.destination != "R" {
+
+						calculateAcceptedRanges(acceptedRange, game.workflows[rule.destination], game, acceptedRanges)
+
+					}
+				}
+
+				if deniedRange.items[rule.property].maximum >= rule.compareTo {
+
+					deniedRange.items[rule.property] = Range{
+						minimum: max(deniedRange.items[rule.property].minimum, rule.compareTo),
+						maximum: deniedRange.items[rule.property].maximum,
+					}
+					rangeForNextRule = deniedRange
+				}
+			case ">":
+
+				acceptedRange := copyRangeElement(rangeForNextRule)
+				deniedRange := copyRangeElement(rangeForNextRule)
+
+				if acceptedRange.items[rule.property].maximum > rule.compareTo {
+
+					acceptedRange.items[rule.property] = Range{
+						minimum: max(acceptedRange.items[rule.property].minimum, rule.compareTo+1),
+						maximum: acceptedRange.items[rule.property].maximum,
+					}
+
+					if rule.destination == "A" {
+
+						acceptedRanges.ranges = append(acceptedRanges.ranges, copyRangeElement(acceptedRange))
+
+					} else if rule.destination != "R" {
+
+						calculateAcceptedRanges(acceptedRange, game.workflows[rule.destination], game, acceptedRanges)
+
+					}
+				}
+
+				if deniedRange.items[rule.property].minimum <= rule.compareTo {
+
+					deniedRange.items[rule.property] = Range{
+						minimum: deniedRange.items[rule.property].minimum,
+						maximum: min(deniedRange.items[rule.property].maximum, rule.compareTo),
+					}
+					rangeForNextRule = deniedRange
+				}
+			}
+		}
+	}
+}
+
+func getPossibilities(element RangeElement) int {
+
+	var result = 1
+
+	for _, value := range element.items {
+
+		result *= value.maximum - value.minimum + 1
+	}
+
+	return result
+}
+
+func copyRangeElement(element RangeElement) RangeElement {
+
+	var newElement RangeElement
+
+	newElement.items = make(map[string]Range)
+
+	for id, v := range element.items {
+
+		newElement.items[id] = v
+	}
+
+	return newElement
+}
+
 func Part1(input string) string {
 
 	content := GetContent(input)
@@ -213,7 +341,40 @@ func Part2(input string) string {
 
 	content := GetContent(input)
 
-	return string(content[0])
+	game := parseGame(content)
+
+	var initialRange RangeElement
+
+	initialRange.items = make(map[string]Range)
+	initialRange.items["x"] = Range{
+		minimum: 1,
+		maximum: 4000,
+	}
+	initialRange.items["m"] = Range{
+		minimum: 1,
+		maximum: 4000,
+	}
+	initialRange.items["a"] = Range{
+		minimum: 1,
+		maximum: 4000,
+	}
+	initialRange.items["s"] = Range{
+		minimum: 1,
+		maximum: 4000,
+	}
+
+	var acceptedRanges RangeSet
+
+	calculateAcceptedRanges(initialRange, game.workflows["in"], game, &acceptedRanges)
+
+	var result = 0
+
+	for _, acceptedRange := range acceptedRanges.ranges {
+
+		result += getPossibilities(acceptedRange)
+	}
+
+	return strconv.Itoa(result)
 }
 
 func GetContent(filepath string) string {
