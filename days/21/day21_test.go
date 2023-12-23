@@ -6,7 +6,7 @@ import (
 )
 
 var P1_IN_TEST = []string{fmt.Sprintf("test/%s/in01.txt", DAY)}
-var P1_OUT_TEST = []string{""}
+var P1_OUT_TEST = []string{"16"}
 
 var P2_IN_TEST = []string{}
 var P2_OUT_TEST = []string{}
@@ -16,7 +16,7 @@ func TestPart1(t *testing.T) {
 	for index, element := range P1_IN_TEST {
 
 		expected := P1_OUT_TEST[index]
-		received := Part1(element)
+		received := Part1(element, 6)
 		assert("Part1", element, expected, received, t)
 	}
 }
