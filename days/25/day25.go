@@ -18,25 +18,14 @@ type Edge struct {
 	out string
 }
 
+func (e Edge) String() string {
+
+	return fmt.Sprintf("{%s,%s}", e.in, e.out)
+}
+
 type Graph struct {
 	nodes []string
 	edges []Edge
-}
-
-func DFS(graph Graph, node string, visited map[string]bool, component []string) []string {
-
-	visited[node] = true
-	component = append(component, node)
-
-	for _, edge := range graph.edges {
-		if edge.in == node && !visited[edge.out] {
-			component = DFS(graph, edge.out, visited, component)
-		} else if edge.out == node && !visited[edge.in] {
-			component = DFS(graph, edge.in, visited, component)
-		}
-	}
-
-	return component
 }
 
 func parseGraph(input string) Graph {
@@ -78,6 +67,70 @@ func parseGraph(input string) Graph {
 	return graph
 }
 
+func BFSAllNodes(graph Graph) map[Edge]int {
+
+	edgePaths := make(map[Edge]int)
+
+	for _, node := range graph.nodes {
+
+		_, visitedEdges := BFS(graph, node)
+
+		for edge, count := range visitedEdges {
+
+			edgePaths[edge] += count
+		}
+	}
+	return edgePaths
+}
+
+func BFS(graph Graph, start string) ([]string, map[Edge]int) {
+
+	visited := make(map[string]bool)
+
+	for _, node := range graph.nodes {
+
+		visited[node] = false
+	}
+
+	visited[start] = true
+	visitedNodes := []string{start}
+	edgePaths := make(map[Edge]int)
+
+	for _, edge := range graph.edges {
+
+		edgePaths[edge] = 0
+	}
+
+	queue := []string{start}
+
+	for len(queue) > 0 {
+
+		node := queue[0]
+		queue = queue[1:]
+
+		for _, edge := range graph.edges {
+
+			if edge.in == node && !visited[edge.out] {
+
+				visited[edge.out] = true
+				visitedNodes = append(visitedNodes, edge.out)
+				queue = append(queue, edge.out)
+				edgePaths[edge] += 1
+
+			} else if edge.out == node && !visited[edge.in] {
+
+				visited[edge.in] = true
+				visitedNodes = append(visitedNodes, edge.in)
+				queue = append(queue, edge.in)
+				edgePaths[edge] += 1
+
+			}
+		}
+	}
+
+	return visitedNodes, edgePaths
+}
+
 func getConnectedComponents(graph Graph) [][]string {
 
 	visited := make(map[string]bool)
@@ -88,7 +141,13 @@ func getConnectedComponents(graph Graph) [][]string {
 		if !visited[node] {
 
 			var component []string
-			component = DFS(graph, node, visited, component)
+			component, _ = BFS(graph, node)
+
+			for _, visitedNode := range component {
+
+				visited[visitedNode] = true
+			}
+
 			components = append(components, component)
 		}
 	}
@@ -129,67 +188,9 @@ func removeEdges(edges []Edge, edgesToRemove []Edge) []Edge {
 	return newEdges
 }
 
-func getEdgesToNumberOfOccurrences(graph Graph) map[Edge]int {
-
-	shortest := make(map[Edge]int)
-	for _, e := range graph.edges {
-
-		shortest[e] = 1
-	}
-
-	for _, n := range graph.nodes {
-
-		dist := make(map[string]int)
-		prev := make(map[string]string)
-		for _, m := range graph.nodes {
-
-			dist[m] = -1
-		}
-		dist[n] = 0
-
-		q := []string{n}
-		for len(q) > 0 {
-
-			u := q[0]
-			q = q[1:]
-
-			for _, e := range graph.edges {
-
-				if e.in == u {
-
-					v := e.out
-					if dist[v] == -1 {
-
-						dist[v] = dist[u] + 1
-						prev[v] = u
-						q = append(q, v)
-
-					} else if dist[v] == dist[u]+1 {
-
-						shortest[e]++
-
-					}
-
-				} else if e.out == u {
-
-					v := e.in
-					if dist[v] == -1 {
-
-						dist[v] = dist[u] + 1
-						prev[v] = u
-						q = append(q, v)
-
-					} else if dist[v] == dist[u]+1 {
-
-						shortest[e]++
-
-					}
-				}
-			}
-		}
-	}
-
-	return shortest
+type Pair struct {
+	Key   Edge
+	Value int
 }
 
 func sortMapByValue(m map[Edge]int) []Pair {
@@ -208,56 +209,36 @@ func sortMapByValue(m map[Edge]int) []Pair {
 	return pairs
 }
 
-type Pair struct {
-	Key   Edge
-	Value int
-}
-
 func Part1(input string) string {
 
 	content := GetContent(input)
 
 	graph := parseGraph(content)
 
-	edges := getEdgesToNumberOfOccurrences(graph)
+	edges := BFSAllNodes(graph)
 
 	sortedEdges := sortMapByValue(edges)
 
-	chunkSize := 10
+	for i := 0; i < len(sortedEdges)-2; i++ {
 
-	var calculatedCombinations map[string]bool = make(map[string]bool)
+		edgeA := sortedEdges[i].Key
 
-	for c := 0; c < len(sortedEdges)/chunkSize; c++ {
+		for j := i + 1; j < len(sortedEdges)-1; j++ {
 
-		for i := 0; i < min(chunkSize*c, len(sortedEdges))-2; i++ {
+			edgeB := sortedEdges[j].Key
 
-			edgeA := sortedEdges[i].Key
+			for k := j + 1; k < len(sortedEdges); k++ {
 
-			for j := i + 1; j < min(chunkSize*c, len(sortedEdges))-1; j++ {
+				edgeC := sortedEdges[k].Key
 
-				edgeB := sortedEdges[j].Key
+				gPrime := Graph{nodes: graph.nodes, edges: removeEdges(graph.edges, []Edge{edgeA, edgeB, edgeC})}
+				connectedComponentSizes := getConnectedComponentSizes(gPrime)
 
-				for k := j + 1; k < min(chunkSize*c, len(sortedEdges)); k++ {
+				if len(connectedComponentSizes) == 2 {
 
-					_, skip := calculatedCombinations[fmt.Sprintf("%d,%d,%d", i, j, k)]
-
-					if skip {
-
-						continue
-					}
-
-					edgeC := sortedEdges[k].Key
-
-					gPrime := Graph{nodes: graph.nodes, edges: removeEdges(graph.edges, []Edge{edgeA, edgeB, edgeC})}
-					connectedComponentSizes := getConnectedComponentSizes(gPrime)
-
-					if len(connectedComponentSizes) == 2 {
-
-						return strconv.Itoa(connectedComponentSizes[0] * connectedComponentSizes[1])
-					}
-
-					calculatedCombinations[fmt.Sprintf("%d,%d,%d", i, j, k)] = true
+					return strconv.Itoa(connectedComponentSizes[0] * connectedComponentSizes[1])
 				}
+
 			}
 		}
 	}
