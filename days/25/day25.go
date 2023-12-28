@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 const DAY = "25"
@@ -24,6 +24,7 @@ type Graph struct {
 }
 
 func DFS(graph Graph, node string, visited map[string]bool, component []string) []string {
+
 	visited[node] = true
 	component = append(component, node)
 
@@ -78,12 +79,15 @@ func parseGraph(input string) Graph {
 }
 
 func getConnectedComponents(graph Graph) [][]string {
+
 	visited := make(map[string]bool)
-	components := [][]string{}
+	var components [][]string
 
 	for _, node := range graph.nodes {
+
 		if !visited[node] {
-			component := []string{}
+
+			var component []string
 			component = DFS(graph, node, visited, component)
 			components = append(components, component)
 		}
@@ -93,8 +97,9 @@ func getConnectedComponents(graph Graph) [][]string {
 }
 
 func getConnectedComponentSizes(graph Graph) []int {
+
 	components := getConnectedComponents(graph)
-	sizes := []int{}
+	var sizes []int
 
 	for _, component := range components {
 		sizes = append(sizes, len(component))
@@ -124,61 +129,88 @@ func removeEdges(edges []Edge, edgesToRemove []Edge) []Edge {
 	return newEdges
 }
 
-func getBridgeWires(graph Graph) int {
+func getEdgesToNumberOfOccurrences(graph Graph) map[Edge]int {
 
-	for i := 0; i < len(graph.edges)-2; i++ {
+	shortest := make(map[Edge]int)
+	for _, e := range graph.edges {
 
-		for j := 0; j < len(graph.edges)-1; j++ {
+		shortest[e] = 1
+	}
 
-			for k := 0; k < len(graph.edges); k++ {
+	for _, n := range graph.nodes {
 
-				gPrime := Graph{nodes: graph.nodes, edges: removeEdges(graph.edges, []Edge{graph.edges[i], graph.edges[j], graph.edges[k]})}
-				connectedComponentSizes := getConnectedComponentSizes(gPrime)
+		dist := make(map[string]int)
+		prev := make(map[string]string)
+		for _, m := range graph.nodes {
 
-				if len(connectedComponentSizes) == 2 {
+			dist[m] = -1
+		}
+		dist[n] = 0
 
-					return connectedComponentSizes[0] * connectedComponentSizes[1]
+		q := []string{n}
+		for len(q) > 0 {
+
+			u := q[0]
+			q = q[1:]
+
+			for _, e := range graph.edges {
+
+				if e.in == u {
+
+					v := e.out
+					if dist[v] == -1 {
+
+						dist[v] = dist[u] + 1
+						prev[v] = u
+						q = append(q, v)
+
+					} else if dist[v] == dist[u]+1 {
+
+						shortest[e]++
+
+					}
+
+				} else if e.out == u {
+
+					v := e.in
+					if dist[v] == -1 {
+
+						dist[v] = dist[u] + 1
+						prev[v] = u
+						q = append(q, v)
+
+					} else if dist[v] == dist[u]+1 {
+
+						shortest[e]++
+
+					}
 				}
 			}
 		}
 	}
 
-	return -1
+	return shortest
 }
 
-func getBridgeWiresParallel(graph Graph) int {
-	var wg sync.WaitGroup
-	resultChan := make(chan int)
+func sortMapByValue(m map[Edge]int) []Pair {
 
-	for i := 0; i < len(graph.edges)-2; i++ {
-		for j := 0; j < len(graph.edges)-1; j++ {
-			for k := 0; k < len(graph.edges); k++ {
-				wg.Add(1)
-				go func(i, j, k int) {
-					defer wg.Done()
-					gPrime := Graph{nodes: graph.nodes, edges: removeEdges(graph.edges, []Edge{graph.edges[i], graph.edges[j], graph.edges[k]})}
-					connectedComponentSizes := getConnectedComponentSizes(gPrime)
-					if len(connectedComponentSizes) == 2 {
-						resultChan <- connectedComponentSizes[0] * connectedComponentSizes[1]
-					}
-				}(i, j, k)
-			}
-		}
+	var pairs []Pair
+	for k, v := range m {
+
+		pairs = append(pairs, Pair{k, v})
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
+	sort.Slice(pairs, func(i, j int) bool {
 
-	maximum := -1
-	for result := range resultChan {
-		if result > maximum {
-			maximum = result
-		}
-	}
+		return pairs[i].Value > pairs[j].Value
+	})
 
-	return maximum
+	return pairs
+}
+
+type Pair struct {
+	Key   Edge
+	Value int
 }
 
 func Part1(input string) string {
@@ -187,7 +219,50 @@ func Part1(input string) string {
 
 	graph := parseGraph(content)
 
-	return strconv.Itoa(getBridgeWiresParallel(graph))
+	edges := getEdgesToNumberOfOccurrences(graph)
+
+	sortedEdges := sortMapByValue(edges)
+
+	chunkSize := 10
+
+	var calculatedCombinations map[string]bool = make(map[string]bool)
+
+	for c := 0; c < len(sortedEdges)/chunkSize; c++ {
+
+		for i := 0; i < min(chunkSize*c, len(sortedEdges))-2; i++ {
+
+			edgeA := sortedEdges[i].Key
+
+			for j := i + 1; j < min(chunkSize*c, len(sortedEdges))-1; j++ {
+
+				edgeB := sortedEdges[j].Key
+
+				for k := j + 1; k < min(chunkSize*c, len(sortedEdges)); k++ {
+
+					_, skip := calculatedCombinations[fmt.Sprintf("%d,%d,%d", i, j, k)]
+
+					if skip {
+
+						continue
+					}
+
+					edgeC := sortedEdges[k].Key
+
+					gPrime := Graph{nodes: graph.nodes, edges: removeEdges(graph.edges, []Edge{edgeA, edgeB, edgeC})}
+					connectedComponentSizes := getConnectedComponentSizes(gPrime)
+
+					if len(connectedComponentSizes) == 2 {
+
+						return strconv.Itoa(connectedComponentSizes[0] * connectedComponentSizes[1])
+					}
+
+					calculatedCombinations[fmt.Sprintf("%d,%d,%d", i, j, k)] = true
+				}
+			}
+		}
+	}
+
+	return "-1"
 }
 
 func GetContent(filepath string) string {

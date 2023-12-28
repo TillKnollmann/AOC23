@@ -128,6 +128,7 @@ func parseGame(input string) Game {
 }
 
 func findNodes(matrix [][]int, id int, depth int) []int {
+
 	nodes := []int{id}
 	for i := 0; i < depth; i++ {
 		newNodes := []int{}
@@ -158,6 +159,14 @@ func removeDuplicates(slice []int) []int {
 	return result
 }
 
+func distance(game Game, nodeAId int, nodeBId int) int {
+
+	nodeA := game.nodesById[nodeAId]
+	nodeB := game.nodesById[nodeBId]
+
+	return max(nodeA.x, nodeB.x) - min(nodeA.x, nodeB.x) + (max(nodeA.y, nodeB.y) - min(nodeA.y, nodeB.y))
+}
+
 func Part1(input string, maxSteps int) string {
 
 	content := GetContent(input)
@@ -176,7 +185,54 @@ func Part2(input string) string {
 
 	content := GetContent(input)
 
-	return string(content[0])
+	game := parseGame(content)
+
+	matrix := calculateAdjacencyMatrix(&game)
+
+	// total steps: 26501365
+	// diameter of a square: 65 + 1 + 65 = 131
+	// number of squares right to the initial one in one direction: (26501365 - 65) / 131 = 202300
+	// number of filled squares around the initial one ending up odd: (202300 + 1)^2 = 40925694601
+	// number of filled squares around the initial one ending up even: (202300)^2 = 40925290000
+	// number corner squares to add (always 4 corner squares add up): 202300
+	// number of corner squares to remove: 202300 + 1 = 202301
+
+	const squaresOdd = 40925694601
+	const squaresEven = 40925290000
+	const squaresToAdd = 202300
+	const squaresToRemove = 202301
+
+	// get nodes that are reachable after an even number of steps and an odd number of steps
+	nodesEven := findNodes(matrix.items, game.start.id, 132)
+	nodesOdd := findNodes(matrix.items, game.start.id, 131)
+
+	// calculate reachable tiles in odd/even number of steps
+	tilesReachableEven := len(nodesEven)
+	tilesReachableOdd := len(nodesOdd)
+
+	// corners are nodes in a manhattan distance of more than diameter of square from center
+	tilesCornerEven := 0
+
+	for _, nodeId := range nodesEven {
+
+		if distance(game, nodeId, game.start.id) > 65 {
+
+			tilesCornerEven++
+		}
+	}
+
+	tilesCornerOdd := 0
+
+	for _, nodeId := range nodesOdd {
+
+		if distance(game, nodeId, game.start.id) > 65 {
+
+			tilesCornerOdd++
+		}
+	}
+
+	// all corners to add are of even squares, all corners to remove of odd squares
+	return strconv.Itoa(squaresOdd*tilesReachableOdd + squaresEven*tilesReachableEven + squaresToAdd*tilesCornerEven - squaresToRemove*tilesCornerOdd)
 }
 
 func GetContent(filepath string) string {
